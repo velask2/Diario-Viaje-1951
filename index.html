@@ -467,9 +467,6 @@ body {
     <div class="setup-label">Clave API de Anthropic</div>
     <input type="password" class="setup-input" id="setupApiKey" placeholder="sk-ant-api03-…">
 
-    <div class="setup-label">Archivo PDF del diario</div>
-    <input type="file" id="setupFile" accept=".pdf" class="setup-file-input">
-
     <div>
       <button class="setup-btn" id="setupRunBtn" onclick="runSetup()">Transcribir diario</button>
       <button class="setup-btn secondary" id="setupDownloadBtn" onclick="downloadPages()" disabled>Descargar pages.json</button>
@@ -727,17 +724,26 @@ function toggleChapters() {
 let setupPages = null;
 
 async function runSetup() {
-  const key  = document.getElementById('setupApiKey').value.trim();
-  const file = document.getElementById('setupFile').files[0];
-  if (!key)  return alert('Ingresá tu clave API de Anthropic.');
-  if (!file) return alert('Seleccioná el archivo PDF del diario.');
+  const key = document.getElementById('setupApiKey').value.trim();
+  if (!key) return alert('Ingresá tu clave API de Anthropic.');
 
   document.getElementById('setupRunBtn').disabled = true;
   document.getElementById('setupDownloadBtn').disabled = true;
+  document.getElementById('setupProgressInfo').textContent = 'Cargando el PDF…';
   setupPages = null;
 
-  const buffer = await file.arrayBuffer();
-  const doc    = await pdfjsLib.getDocument({ data: buffer }).promise;
+  let buffer;
+  try {
+    const r = await fetch(PDF_URL);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    buffer = await r.arrayBuffer();
+  } catch (e) {
+    alert('No se pudo cargar el PDF del servidor: ' + e.message);
+    document.getElementById('setupRunBtn').disabled = false;
+    return;
+  }
+
+  const doc = await pdfjsLib.getDocument({ data: buffer }).promise;
   const total  = doc.numPages;
   setupPages   = Array.from({ length: total }, (_, i) => ({ pageNum: i + 1, text: '', hasContent: false }));
 
